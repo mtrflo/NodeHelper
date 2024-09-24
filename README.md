@@ -11,4 +11,5 @@ This version of the addon includes.
     2) Copy input sockets and paste to another
 
 
+
 ![Nodehelper1](https://github.com/user-attachments/assets/9ee18478-ca78-4498-9445-5cbb80e7e187)
