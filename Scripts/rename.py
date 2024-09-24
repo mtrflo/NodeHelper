@@ -3,10 +3,27 @@ from bpy.types import Operator
 
 print("NodeHelper addon loaded - Version 2.1")
 
-class NODEHELPER_OT_rename_attribute(Operator):
-    bl_idname = "nodehelper.rename_attribute"
+
+class NODEHELPER_PT_rename_panel(Panel):
     bl_label = "Rename Attribute"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_idname = "NODEHELPER_PT_rename_panel"
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "NodeHelper"
+    
+    @classmethod
+    def poll(cls, context):
+        return (context.space_data.type == 'NODE_EDITOR' and
+                context.space_data.tree_type == 'GeometryNodeTree')
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        col = layout.column(align=True)
+        col.prop(scene, "old_attribute_name", text="Old Name")
+        col.prop(scene, "new_attribute_name", text="New Name")
+        layout.operator("nodehelper.rename_attribute", text="Rename")
 
     def execute(self, context):
         print("Rename attribute operator executed - Version 2.1")
@@ -59,24 +76,22 @@ class NODEHELPER_OT_rename_attribute(Operator):
             print(f"Renamed Input Named Attribute: {node.name} from '{old_name}' to '{new_name}'")
 
 def register():
+    bpy.utils.register_class(NODEHELPER_PT_rename_panel)
     bpy.utils.register_class(NODEHELPER_OT_rename_attribute)
-    # Add properties to the Scene if not already present
-    if not hasattr(bpy.types.Scene, 'old_attribute_name'):
-        bpy.types.Scene.old_attribute_name = bpy.props.StringProperty(
-            name="Old Attribute Name",
-            description="Name of the attribute to rename",
-            default=""
-        )
-    if not hasattr(bpy.types.Scene, 'new_attribute_name'):
-        bpy.types.Scene.new_attribute_name = bpy.props.StringProperty(
-            name="New Attribute Name",
-            description="New name for the attribute",
-            default=""
-        )
+    bpy.types.Scene.old_attribute_name = bpy.props.StringProperty(
+        name="Old Attribute Name",
+        description="Name of the attribute to rename",
+        default=""
+    )
+    bpy.types.Scene.new_attribute_name = bpy.props.StringProperty(
+        name="New Attribute Name",
+        description="New name for the attribute",
+        default=""
+    )
 
 def unregister():
+    bpy.utils.unregister_class(NODEHELPER_PT_rename_panel)
     bpy.utils.unregister_class(NODEHELPER_OT_rename_attribute)
-    # Remove properties from the Scene
     del bpy.types.Scene.old_attribute_name
     del bpy.types.Scene.new_attribute_name
 
