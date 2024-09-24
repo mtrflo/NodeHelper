@@ -1,8 +1,26 @@
+bl_info = {
+    "name": "Nodehelper",
+    "author": "Fazoway",
+    "version": (0, 1, 0),
+    "blender": (4, 0, 0),
+    "location": "Node Editor > NodeHelper",
+    "description": "This addon complements the tools for working with GeometryNodes.",
+    "warning": "",
+    "doc_url": "",  # You can add a documentation URL if you have one
+    "category": "Node",
+}
+
 import bpy
+import os
+import sys
 from bpy.props import StringProperty, CollectionProperty
 from bpy.types import Panel, PropertyGroup
-from . import input_navigator
-from . import groupIO
+
+# Add the Scripts directory to sys.path
+addon_dir = os.path.dirname(__file__)
+scripts_dir = os.path.join(addon_dir, "Scripts")
+if scripts_dir not in sys.path:
+    sys.path.append(scripts_dir)
 
 class FoundAttribute(PropertyGroup):
     node_path: StringProperty()
@@ -13,7 +31,8 @@ class NODEHELPER_PT_named_attributes(Panel):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_category = "NodeHelper"
-
+    bl_order = 1
+    
     @classmethod
     def poll(cls, context):
         return (context.space_data.type == 'NODE_EDITOR' and
@@ -40,12 +59,12 @@ class NODEHELPER_PT_named_attributes(Panel):
         col.prop(scene, "new_attribute_name", text="New Name")
         layout.operator("nodehelper.rename_attribute", text="Rename")
 
+def import_submodule(module_name):
+    import importlib
+    return importlib.import_module(module_name)
+
 def register():
     bpy.utils.register_class(FoundAttribute)
-    
-    from . import general
-    general.register()  # Register General panel first
-    
     bpy.utils.register_class(NODEHELPER_PT_named_attributes)
     
     bpy.types.Scene.attribute_search_name = StringProperty(
@@ -68,16 +87,24 @@ def register():
     
     bpy.types.Scene.found_attributes = CollectionProperty(type=FoundAttribute)
     
-    from . import rename, find
-    rename.register()
-    find.register()
-    input_navigator.register()
-    groupIO.register()  # Add this line
+    # Import and register submodules
+    for module_name in ['general', 'input_navigator', 'groupIO', 'rename', 'find']:
+        try:
+            module = import_submodule(module_name)
+            if hasattr(module, 'register'):
+                module.register()
+        except ImportError as e:
+            print(f"Error importing {module_name}: {e}")
 
 def unregister():
-    from . import rename, find, general
-    find.unregister()
-    rename.unregister()
+    # Import and unregister submodules
+    for module_name in ['find', 'rename', 'groupIO', 'input_navigator', 'general']:
+        try:
+            module = import_submodule(module_name)
+            if hasattr(module, 'unregister'):
+                module.unregister()
+        except ImportError as e:
+            print(f"Error importing {module_name}: {e}")
     
     del bpy.types.Scene.found_attributes
     del bpy.types.Scene.new_attribute_name
@@ -86,10 +113,6 @@ def unregister():
     
     bpy.utils.unregister_class(NODEHELPER_PT_named_attributes)
     bpy.utils.unregister_class(FoundAttribute)
-    
-    general.unregister()  # Unregister General panel last
-    input_navigator.unregister()
-    groupIO.unregister()  # Add this line
 
 if __name__ == "__main__":
-    register()  
+    register()

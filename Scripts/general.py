@@ -6,7 +6,7 @@ class NODEHELPER_OT_select_group_inputs_hide_sockets(Operator):
     bl_label = "Hide Group Input Unused Sockets"
     bl_description = "Select all Group Input nodes and hide unconnected sockets in the current node group"
     bl_options = {'REGISTER', 'UNDO'}
-
+    bl_order = 0
     def execute(self, context):
         if context.space_data.type != 'NODE_EDITOR':
             self.report({'WARNING'}, "This operator only works in the Node Editor")
