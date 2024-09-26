@@ -1,32 +1,15 @@
 import bpy
-from bpy.types import Operator, PropertyGroup
+from bpy.types import Operator, PropertyGroup, Panel
 from bpy.props import StringProperty, CollectionProperty, IntProperty
 
-class NODEHELPER_PT_find_panel(Panel):
-    bl_label = "Find Attribute"
-    bl_idname = "NODEHELPER_PT_find_panel"
-    bl_space_type = 'NODE_EDITOR'
-    bl_region_type = 'UI'
-    bl_category = "NodeHelper"
-    
-    @classmethod
-    def poll(cls, context):
-        return (context.space_data.type == 'NODE_EDITOR' and
-                context.space_data.tree_type == 'GeometryNodeTree')
+class FoundAttribute(PropertyGroup):
+    node_path: StringProperty(name="Node Path")
+    node_name: StringProperty(name="Node Name")
 
-    def draw(self, context):
-        layout = self.layout
-        scene = context.scene
-
-        layout.prop(scene, "attribute_search_name", text="Search Name")
-        layout.operator("nodehelper.find_named_attributes", text="Find Attributes")
-
-        if hasattr(scene, "found_attributes"):
-            for i, item in enumerate(scene.found_attributes):
-                box = layout.box()
-                row = box.row()
-                row.label(text=f"{item.node_path}")
-                row.operator("nodehelper.jump_to_node", text="", icon='VIEWZOOM').index = i
+class NODEHELPER_OT_find_named_attributes(Operator):
+    bl_idname = "nodehelper.find_named_attributes"
+    bl_label = "Find Named Attributes"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         if context.area.type != 'NODE_EDITOR':
@@ -110,26 +93,51 @@ class NODEHELPER_OT_jump_to_node(Operator):
         self.report({'ERROR'}, "Failed to navigate to the target node.")
         return {'CANCELLED'}
 
+class NODEHELPER_PT_find_panel(Panel):
+    bl_label = "Find Attribute Nodes"
+    bl_idname = "NODEHELPER_PT_find_panel"
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "NodeHelper"
+
+    @classmethod
+    def poll(cls, context):
+        return context.space_data.type == 'NODE_EDITOR' and context.space_data.tree_type == 'GeometryNodeTree'
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        layout.prop(scene, "attribute_search_name", text="Search")
+        layout.operator("nodehelper.find_named_attributes", text="Find Attributes")
+
+        for i, item in enumerate(scene.found_attributes):
+            box = layout.box()
+            row = box.row()
+            row.label(text=f"{item.node_name}")
+            op = row.operator("nodehelper.jump_to_node", text="", icon='VIEWZOOM')
+            op.index = i
+            box.label(text=f"Path: {item.node_path}")
 
 def register():
     bpy.utils.register_class(FoundAttribute)
-    bpy.utils.register_class(NODEHELPER_PT_find_panel)
     bpy.utils.register_class(NODEHELPER_OT_find_named_attributes)
     bpy.utils.register_class(NODEHELPER_OT_jump_to_node)
+    bpy.utils.register_class(NODEHELPER_PT_find_panel)
+    bpy.types.Scene.found_attributes = CollectionProperty(type=FoundAttribute)
     bpy.types.Scene.attribute_search_name = StringProperty(
-        name="Search Name",
-        description="Enter the name to search for",
+        name="Search Attribute",
+        description="Enter the name of the attribute to search for",
         default=""
     )
-    bpy.types.Scene.found_attributes = CollectionProperty(type=FoundAttribute)
 
 def unregister():
-    bpy.utils.unregister_class(NODEHELPER_PT_find_panel)
-    bpy.utils.unregister_class(NODEHELPER_OT_find_named_attributes)
-    bpy.utils.unregister_class(NODEHELPER_OT_jump_to_node)
-    bpy.utils.unregister_class(FoundAttribute)
     del bpy.types.Scene.attribute_search_name
     del bpy.types.Scene.found_attributes
+    bpy.utils.unregister_class(NODEHELPER_PT_find_panel)
+    bpy.utils.unregister_class(NODEHELPER_OT_jump_to_node)
+    bpy.utils.unregister_class(NODEHELPER_OT_find_named_attributes)
+    bpy.utils.unregister_class(FoundAttribute)
 
 if __name__ == "__main__":
     register()
