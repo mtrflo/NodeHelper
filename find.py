@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import Operator, PropertyGroup, Panel
-from bpy.props import StringProperty, CollectionProperty, IntProperty
+from bpy.props import StringProperty, CollectionProperty, IntProperty, BoolProperty
 
 class FoundAttribute(PropertyGroup):
     node_path: StringProperty(name="Node Path")
@@ -111,29 +111,54 @@ class NODEHELPER_PT_find_panel(Panel):
         layout.prop(scene, "attribute_search_name", text="Search")
         layout.operator("nodehelper.find_named_attributes", text="Find Attributes")
 
-        for i, item in enumerate(scene.found_attributes):
-            box = layout.box()
+        # Create a box to contain the list
+        box = layout.box()
+        row = box.row()
+        row.prop(scene, "show_attribute_list", icon="TRIA_DOWN" if scene.show_attribute_list else "TRIA_RIGHT", icon_only=True, emboss=False)
+        row.label(text="Found Attributes")
+
+        # If the list is expanded, show the scrollable list
+        if scene.show_attribute_list:
             row = box.row()
-            row.label(text=f"{item.node_name}")
-            op = row.operator("nodehelper.jump_to_node", text="", icon='VIEWZOOM')
-            op.index = i
-            box.label(text=f"Path: {item.node_path}")
+            col = row.column()
+            col.template_list("NODEHELPER_UL_AttributeList", "", scene, "found_attributes", scene, "active_attribute_index", rows=5)
+
+# Custom list class
+class NODEHELPER_UL_AttributeList(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row(align=True)
+            row.label(text=item.node_path)
+            op = row.operator("nodehelper.jump_to_node", text="", icon='VIEWZOOM', emboss=False)
+            op.index = data.found_attributes.values().index(item)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon='NODE')
 
 def register():
     bpy.utils.register_class(FoundAttribute)
     bpy.utils.register_class(NODEHELPER_OT_find_named_attributes)
     bpy.utils.register_class(NODEHELPER_OT_jump_to_node)
     bpy.utils.register_class(NODEHELPER_PT_find_panel)
+    bpy.utils.register_class(NODEHELPER_UL_AttributeList)
     bpy.types.Scene.found_attributes = CollectionProperty(type=FoundAttribute)
     bpy.types.Scene.attribute_search_name = StringProperty(
         name="Search Attribute",
         description="Enter the name of the attribute to search for",
         default=""
     )
+    bpy.types.Scene.show_attribute_list = BoolProperty(
+        name="Show Attribute List",
+        default=True
+    )
+    bpy.types.Scene.active_attribute_index = IntProperty()
 
 def unregister():
+    del bpy.types.Scene.active_attribute_index
+    del bpy.types.Scene.show_attribute_list
     del bpy.types.Scene.attribute_search_name
     del bpy.types.Scene.found_attributes
+    bpy.utils.unregister_class(NODEHELPER_UL_AttributeList)
     bpy.utils.unregister_class(NODEHELPER_PT_find_panel)
     bpy.utils.unregister_class(NODEHELPER_OT_jump_to_node)
     bpy.utils.unregister_class(NODEHELPER_OT_find_named_attributes)
