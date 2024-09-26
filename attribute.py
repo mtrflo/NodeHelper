@@ -6,47 +6,62 @@ class FoundAttribute(PropertyGroup):
     node_path: StringProperty(name="Node Path")
     node_name: StringProperty(name="Node Name")
 
+
+
 class NODEHELPER_OT_find_named_attributes(Operator):
     bl_idname = "nodehelper.find_named_attributes"
     bl_label = "Find Named Attributes"
     bl_options = {'REGISTER', 'UNDO'}
-    bl_order = 2
+
     def execute(self, context):
         if context.area.type != 'NODE_EDITOR':
             self.report({'ERROR'}, "This operator must be used in the Node Editor.")
             return {'CANCELLED'}
 
         search_name = context.scene.attribute_search_name.lower()
-        node_tree = context.space_data.node_tree
-        
-        if not node_tree or node_tree.type != 'GEOMETRY':
-            self.report({'ERROR'}, "No active Geometry Node tree found.")
-            return {'CANCELLED'}
         
         context.scene.found_attributes.clear()
         
-        def search_node(node, path, tree):
-            if hasattr(node, 'node_tree'):
-                for sub_node in node.node_tree.nodes:
-                    search_node(sub_node, path + [node.name], node.node_tree)
-            
-            if "Named Attribute" in node.bl_label:
-                if hasattr(node, 'attribute_name'):
-                    attribute_name = node.attribute_name.lower()
-                elif hasattr(node, 'inputs') and len(node.inputs) > 0 and hasattr(node.inputs[0], 'default_value'):
-                    attribute_name = node.inputs[0].default_value.lower()
-                else:
-                    attribute_name = node.name.lower()
+        # Use a set to keep track of unique nodes
+        found_nodes = set()
 
-                if search_name in attribute_name:
-                    item = context.scene.found_attributes.add()
-                    item.node_path = ' > '.join(path + [node.name])
-                    item.node_name = node.name
+        # Search in all geometry node groups
+        for node_group in bpy.data.node_groups:
+            if node_group.type == 'GEOMETRY':
+                self.search_node_tree(node_group, search_name, [], found_nodes)
 
-        for node in node_tree.nodes:
-            search_node(node, [], node_tree)
-        
+        self.report({'INFO'}, f"Found {len(context.scene.found_attributes)} unique attribute node(s).")
         return {'FINISHED'}
+
+    def search_node_tree(self, node_tree, search_name, path, found_nodes):
+        for node in node_tree.nodes:
+            current_path = path + [node.name]
+            
+            if node.type == 'GROUP' and node.node_tree:
+                self.search_node_tree(node.node_tree, search_name, current_path, found_nodes)
+            
+            if node.bl_idname in ['GeometryNodeInputNamedAttribute', 'GeometryNodeStoreNamedAttribute']:
+                attribute_name = self.get_attribute_name(node)
+                if search_name in attribute_name.lower():
+                    # Only add the node if it hasn't been found before
+                    if node not in found_nodes:
+                        self.add_found_attribute(node, current_path, attribute_name)
+                        found_nodes.add(node)
+
+    def get_attribute_name(self, node):
+        if node.bl_idname == 'GeometryNodeInputNamedAttribute':
+            return node.inputs[0].default_value
+        elif node.bl_idname == 'GeometryNodeStoreNamedAttribute':
+            name_socket = next((input for input in node.inputs if input.name == 'Name'), None)
+            return name_socket.default_value if name_socket else node.name
+        return node.name
+
+    def add_found_attribute(self, node, path, attribute_name):
+        item = bpy.context.scene.found_attributes.add()
+        item.node_path = ' > '.join(path)
+        item.node_name = f"{node.bl_label}: {attribute_name}"
+
+
 
 class NODEHELPER_OT_jump_to_node(Operator):
     bl_idname = "nodehelper.jump_to_node"
@@ -92,6 +107,8 @@ class NODEHELPER_OT_jump_to_node(Operator):
 
         self.report({'ERROR'}, "Failed to navigate to the target node.")
         return {'CANCELLED'}
+
+
 
 class NODEHELPER_OT_rename_attribute(Operator):
     bl_idname = "nodehelper.rename_attribute"
@@ -144,6 +161,8 @@ class NODEHELPER_OT_rename_attribute(Operator):
             return 1
         return 0
 
+
+
 class NODEHELPER_PT_attribute_panel(Panel):
     bl_label = "Attribute"
     bl_idname = "NODEHELPER_PT_attribute_panel"
@@ -182,6 +201,8 @@ class NODEHELPER_PT_attribute_panel(Panel):
             col = row.column()
             col.template_list("NODEHELPER_UL_AttributeList", "", scene, "found_attributes", scene, "active_attribute_index", rows=5)
 
+
+
 class NODEHELPER_UL_AttributeList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -192,6 +213,8 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon='NODE')
+
+
 
 def register():
     bpy.utils.register_class(FoundAttribute)
