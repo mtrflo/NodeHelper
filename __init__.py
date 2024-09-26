@@ -11,16 +11,14 @@ bl_info = {
 }
 
 import bpy
-from . import find
+from . import attribute
 from . import general
-from . import rename
 from . import input_navigator
 from . import groupIO
 
 modules = [
-    find,
+    attribute,
     general,
-    rename,
     input_navigator,
     groupIO
 ]
