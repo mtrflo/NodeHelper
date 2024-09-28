@@ -6,8 +6,6 @@ class FoundAttribute(PropertyGroup):
     node_path: StringProperty(name="Node Path")
     node_name: StringProperty(name="Node Name")
 
-
-
 class NODEHELPER_OT_find_named_attributes(Operator):
     bl_idname = "nodehelper.find_named_attributes"
     bl_label = "Find Named Attributes"
@@ -61,8 +59,6 @@ class NODEHELPER_OT_find_named_attributes(Operator):
         item.node_path = ' > '.join(path)
         item.node_name = f"{node.bl_label}: {attribute_name}"
 
-
-
 class NODEHELPER_OT_jump_to_node(Operator):
     bl_idname = "nodehelper.jump_to_node"
     bl_label = "Jump to Node"
@@ -107,8 +103,6 @@ class NODEHELPER_OT_jump_to_node(Operator):
 
         self.report({'ERROR'}, "Failed to navigate to the target node.")
         return {'CANCELLED'}
-
-
 
 class NODEHELPER_OT_rename_attribute(Operator):
     bl_idname = "nodehelper.rename_attribute"
@@ -161,8 +155,6 @@ class NODEHELPER_OT_rename_attribute(Operator):
             return 1
         return 0
 
-
-
 class NODEHELPER_PT_attribute_panel(Panel):
     bl_label = "Attribute"
     bl_idname = "NODEHELPER_PT_attribute_panel"
@@ -192,6 +184,7 @@ class NODEHELPER_PT_attribute_panel(Panel):
         box.operator("nodehelper.find_named_attributes", text="Find Attributes")
 
         # Found Attributes list
+        box = layout.box()
         row = box.row()
         row.prop(scene, "show_attribute_list", icon="TRIA_DOWN" if scene.show_attribute_list else "TRIA_RIGHT", icon_only=True, emboss=False)
         row.label(text="Found Attributes")
@@ -201,20 +194,18 @@ class NODEHELPER_PT_attribute_panel(Panel):
             col = row.column()
             col.template_list("NODEHELPER_UL_AttributeList", "", scene, "found_attributes", scene, "active_attribute_index", rows=5)
 
-
-
 class NODEHELPER_UL_AttributeList(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
-            row.label(text=item.node_path)
-            op = row.operator("nodehelper.jump_to_node", text="", icon='VIEWZOOM', emboss=False)
+            
+            # Create a button for each item
+            op = row.operator("nodehelper.jump_to_node", text=item.node_path, emboss=True)
             op.index = data.found_attributes.values().index(item)
+            
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon='NODE')
-
-
 
 def register():
     bpy.utils.register_class(FoundAttribute)

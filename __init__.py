@@ -12,14 +12,14 @@ bl_info = {
 
 import bpy
 from . import attribute
-from . import general
 from . import input_navigator
 from . import groupIO
+from . import group_input
 
 modules = [
     attribute,
-    general,
     input_navigator,
+    group_input,
     groupIO
 ]
 
