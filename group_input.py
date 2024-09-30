@@ -1,6 +1,6 @@
 import bpy
 from bpy.types import Panel, Operator
-from bpy.props import StringProperty, BoolProperty, IntProperty
+from bpy.props import StringProperty, IntProperty
 
 class NODEHELPER_OT_hide_unused_sockets(Operator):
     bl_idname = "nodehelper.hide_unused_sockets"
@@ -16,6 +16,47 @@ class NODEHELPER_OT_hide_unused_sockets(Operator):
                         if not output.links:
                             output.hide = True
         return {'FINISHED'}
+
+
+
+
+class NODEHELPER_OT_drag_input(Operator):
+    bl_idname = "nodehelper.drag_input"
+    bl_label = "Drag Input"
+    bl_description = "Click to add a Group Input node for this input and drag to position it"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    input_name: StringProperty()
+
+    def invoke(self, context, event):
+        tree = context.space_data.node_tree
+        if not tree:
+            return {'CANCELLED'}
+
+        # Create a new Group Input node at the mouse position
+        mouse_x, mouse_y = context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
+        input_node = tree.nodes.new(type='NodeGroupInput')
+        input_node.location = mouse_x, mouse_y
+
+        # Hide all outputs except the one we want
+        for output in input_node.outputs:
+            if output.name == self.input_name:
+                output.hide = False
+            else:
+                output.hide = True
+
+        # Select and make the new node active
+        for node in tree.nodes:
+            node.select = False
+        input_node.select = True
+        tree.nodes.active = input_node
+
+        # Start the grab operation
+        bpy.ops.transform.translate('INVOKE_DEFAULT')
+
+        return {'FINISHED'}
+
+
 
 class NODEHELPER_OT_jump_to_input(Operator):
     bl_idname = "nodehelper.jump_to_input"
@@ -120,32 +161,31 @@ class NODEHELPER_PT_group_input(Panel):
                 search_term = context.scene.nodehelper_input_search.lower()
 
                 for output in group_input.outputs:
+                    # Skip outputs without a name
+                    if not output.name:
+                        continue
+                    
                     if search_term in output.name.lower():
                         row = col.row(align=True)
                         row.scale_y = 1.5  # This makes the buttons 1.5 times as tall
                         
-                        # Jump to input button (takes 70% of the row width)
-                        split = row.split(factor=0.7)
-                        op = split.operator("nodehelper.jump_to_input", text=output.name)
+                        # Drag and drop button
+                        split = row.split(factor=0.8)
+                        op = split.operator("nodehelper.drag_input", text=output.name)
                         op.input_name = output.name
                         
-                        # Jump to connected node button (takes 30% of the row width)
-                        op = split.operator("nodehelper.jump_to_connected_node", text="Show", icon='VIEWZOOM')
+                        # Jump to connected node button (wider than before)
+                        op = split.operator("nodehelper.jump_to_connected_node", text="", icon='VIEWZOOM')
                         op.input_name = output.name
                         
                         # Add a small vertical space between buttons
                         col.separator(factor=0.2)
 
-
-
-
-
-
-
 def register():
     bpy.utils.register_class(NODEHELPER_OT_hide_unused_sockets)
     bpy.utils.register_class(NODEHELPER_OT_jump_to_input)
     bpy.utils.register_class(NODEHELPER_OT_jump_to_connected_node)
+    bpy.utils.register_class(NODEHELPER_OT_drag_input)  # Add this line
     bpy.utils.register_class(NODEHELPER_PT_group_input)
     bpy.types.Scene.nodehelper_input_search = StringProperty(
         name="Input Search",
@@ -160,6 +200,7 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(NODEHELPER_PT_group_input)
+    bpy.utils.unregister_class(NODEHELPER_OT_drag_input)  # Add this line
     bpy.utils.unregister_class(NODEHELPER_OT_jump_to_connected_node)
     bpy.utils.unregister_class(NODEHELPER_OT_jump_to_input)
     bpy.utils.unregister_class(NODEHELPER_OT_hide_unused_sockets)
