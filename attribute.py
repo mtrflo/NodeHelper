@@ -6,6 +6,7 @@ class FoundAttribute(PropertyGroup):
     node_path: StringProperty(name="Node Path")
     node_name: StringProperty(name="Node Name")
     hierarchy_level: IntProperty(name="Hierarchy Level")
+
 class NODEHELPER_OT_find_named_attributes(Operator):
     bl_idname = "nodehelper.find_named_attributes"
     bl_label = "Find Named Attributes"
@@ -39,7 +40,7 @@ class NODEHELPER_OT_find_named_attributes(Operator):
             else:
                 current_path = path + [node.name]
             
-            if node.bl_idname in ['GeometryNodeInputNamedAttribute', 'GeometryNodeStoreNamedAttribute']:
+            if node.bl_idname in ['GeometryNodeInputNamedAttribute', 'GeometryNodeStoreNamedAttribute', 'GeometryNodeRemoveNamedAttribute']:
                 attribute_name = self.get_attribute_name(node)
                 if search_name in attribute_name.lower():
                     if node not in found_nodes:
@@ -52,6 +53,8 @@ class NODEHELPER_OT_find_named_attributes(Operator):
         elif node.bl_idname == 'GeometryNodeStoreNamedAttribute':
             name_socket = next((input for input in node.inputs if input.name == 'Name'), None)
             return name_socket.default_value if name_socket else node.name
+        elif node.bl_idname == 'GeometryNodeRemoveNamedAttribute':
+            return node.inputs[1].default_value  # The second input is typically the "Name" input
         return node.name
 
     def add_found_attribute(self, node, path, attribute_name, hierarchy_level):
@@ -59,6 +62,7 @@ class NODEHELPER_OT_find_named_attributes(Operator):
         item.node_path = ' > '.join(path)
         item.node_name = f"{node.bl_label}: {attribute_name}"
         item.hierarchy_level = hierarchy_level
+
 
 class NODEHELPER_OT_jump_to_node(Operator):
     bl_idname = "nodehelper.jump_to_node"
@@ -124,43 +128,56 @@ class NODEHELPER_OT_rename_attribute(Operator):
             self.report({'ERROR'}, "Both old and new names must be provided.")
             return {'CANCELLED'}
 
-        # Get all node groups in the file
-        node_groups = [ng for ng in bpy.data.node_groups if ng.type == 'GEOMETRY']
-
-        renamed_count = 0
-        for ng in node_groups:
-            renamed_count += self.rename_attributes_in_tree(ng, old_name, new_name)
+        renamed_count = self.rename_attributes(old_name, new_name)
 
         self.report({'INFO'}, f"Renamed {renamed_count} attribute(s) from '{old_name}' to '{new_name}'.")
+        
+        for area in bpy.context.screen.areas:
+            if area.type == 'NODE_EDITOR':
+                area.tag_redraw()
+        
         return {'FINISHED'}
 
-    def rename_attributes_in_tree(self, node_tree, old_name, new_name):
+    def rename_attributes(self, old_name, new_name):
         renamed_count = 0
-        for node in node_tree.nodes:
-            if node.bl_idname == 'GeometryNodeStoreNamedAttribute':
-                renamed_count += self.rename_store_named_attribute(node, old_name, new_name)
-            elif node.bl_idname == 'GeometryNodeInputNamedAttribute':
-                renamed_count += self.rename_input_named_attribute(node, old_name, new_name)
-            
-            if node.name == old_name:
-                node.name = new_name
-                renamed_count += 1
-        
+        for ng in bpy.data.node_groups:
+            if ng.type == 'GEOMETRY':
+                for node in ng.nodes:
+                    if node.type == 'GROUP':
+                        renamed_count += self.rename_attributes_in_group(node.node_tree, old_name, new_name)
+                    else:
+                        renamed_count += self.rename_attribute_node(node, old_name, new_name)
         return renamed_count
 
-    def rename_store_named_attribute(self, node, old_name, new_name):
+    def rename_attributes_in_group(self, node_tree, old_name, new_name):
+        renamed_count = 0
+        for node in node_tree.nodes:
+            if node.type == 'GROUP':
+                renamed_count += self.rename_attributes_in_group(node.node_tree, old_name, new_name)
+            else:
+                renamed_count += self.rename_attribute_node(node, old_name, new_name)
+        return renamed_count
+
+    def rename_attribute_node(self, node, old_name, new_name):
         renamed = 0
-        for input_socket in node.inputs:
-            if input_socket.name == 'Name' and input_socket.default_value == old_name:
-                input_socket.default_value = new_name
-                renamed += 1
+        attribute_nodes = {
+            'GeometryNodeStoreNamedAttribute': 'Name',
+            'GeometryNodeInputNamedAttribute': 'Name',
+            'GeometryNodeRemoveAttribute': 'Name',
+            'GeometryNodeCaptureAttribute': 'Name',
+            'GeometryNodeAttributeStatistic': 'Attribute',
+            'GeometryNodeAttributeDomainSize': 'Attribute'
+        }
+        
+        if node.bl_idname in attribute_nodes:
+            name_input = node.inputs.get(attribute_nodes[node.bl_idname])
+            
+            if name_input and name_input.default_value == old_name:
+                name_input.default_value = new_name
+                renamed = 1
         return renamed
 
-    def rename_input_named_attribute(self, node, old_name, new_name):
-        if node.inputs and node.inputs[0].default_value == old_name:
-            node.inputs[0].default_value = new_name
-            return 1
-        return 0
+
 
 class NODEHELPER_PT_attribute_panel(Panel):
     bl_label = "Attribute"
@@ -218,8 +235,12 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
         helpers = bpy.types.UI_UL_list
         items = getattr(data, propname)
 
-        # Sort items first by hierarchy level, then by node path
-        sorted_items = sorted(enumerate(items), key=lambda x: (x[1].hierarchy_level, x[1].node_path))
+        def parse_path(path):
+            components = path.split(' > ')
+            return tuple((comp, 'zzzz' if '(Group)' in comp else comp) for comp in components)
+
+        # Sort items by parsed node path
+        sorted_items = sorted(enumerate(items), key=lambda x: parse_path(x[1].node_path))
         order = [i[0] for i in sorted_items]
 
         # No filtering
