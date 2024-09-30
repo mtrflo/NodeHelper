@@ -29,33 +29,51 @@ class NODEHELPER_OT_drag_input(Operator):
     input_name: StringProperty()
 
     def invoke(self, context, event):
-        tree = context.space_data.node_tree
-        if not tree:
+        space = context.space_data
+        active_tree = space.edit_tree or space.node_tree
+        if not active_tree:
             return {'CANCELLED'}
 
         # Create a new Group Input node at the mouse position
         mouse_x, mouse_y = context.region.view2d.region_to_view(event.mouse_region_x, event.mouse_region_y)
-        input_node = tree.nodes.new(type='NodeGroupInput')
+        input_node = active_tree.nodes.new(type='NodeGroupInput')
         input_node.location = mouse_x, mouse_y
 
-        # Hide all outputs except the one we want
-        for output in input_node.outputs:
-            if output.name == self.input_name:
-                output.hide = False
+        # If we're inside a node group, we need to create a new input for the group
+        if active_tree.type == 'GROUP':
+            # Check if the input already exists
+            existing_input = active_tree.inputs.get(self.input_name)
+            if not existing_input:
+                # Create a new input for the group
+                new_input = active_tree.inputs.new('NodeSocketGeometry', self.input_name)
             else:
-                output.hide = True
+                new_input = existing_input
+
+            # Connect the new input to the Group Input node
+            for output in input_node.outputs:
+                if output.name == new_input.name:
+                    output.hide = False
+                else:
+                    output.hide = True
+
+        else:
+            # For the root tree, hide all outputs except the one we want
+            for output in input_node.outputs:
+                if output.name == self.input_name:
+                    output.hide = False
+                else:
+                    output.hide = True
 
         # Select and make the new node active
-        for node in tree.nodes:
+        for node in active_tree.nodes:
             node.select = False
         input_node.select = True
-        tree.nodes.active = input_node
+        active_tree.nodes.active = input_node
 
         # Start the grab operation
         bpy.ops.transform.translate('INVOKE_DEFAULT')
 
         return {'FINISHED'}
-
 
 
 class NODEHELPER_OT_jump_to_input(Operator):

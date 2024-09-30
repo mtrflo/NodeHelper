@@ -5,7 +5,7 @@ from bpy.props import StringProperty, CollectionProperty, IntProperty, BoolPrope
 class FoundAttribute(PropertyGroup):
     node_path: StringProperty(name="Node Path")
     node_name: StringProperty(name="Node Name")
-
+    hierarchy_level: IntProperty(name="Hierarchy Level")
 class NODEHELPER_OT_find_named_attributes(Operator):
     bl_idname = "nodehelper.find_named_attributes"
     bl_label = "Find Named Attributes"
@@ -31,19 +31,19 @@ class NODEHELPER_OT_find_named_attributes(Operator):
         self.report({'INFO'}, f"Found {len(context.scene.found_attributes)} unique attribute node(s).")
         return {'FINISHED'}
 
-    def search_node_tree(self, node_tree, search_name, path, found_nodes):
+    def search_node_tree(self, node_tree, search_name, path, found_nodes, hierarchy_level=0):
         for node in node_tree.nodes:
-            current_path = path + [node.name]
-            
             if node.type == 'GROUP' and node.node_tree:
-                self.search_node_tree(node.node_tree, search_name, current_path, found_nodes)
+                current_path = path + [f"{node.node_tree.name} (Group)"]
+                self.search_node_tree(node.node_tree, search_name, current_path, found_nodes, hierarchy_level + 1)
+            else:
+                current_path = path + [node.name]
             
             if node.bl_idname in ['GeometryNodeInputNamedAttribute', 'GeometryNodeStoreNamedAttribute']:
                 attribute_name = self.get_attribute_name(node)
                 if search_name in attribute_name.lower():
-                    # Only add the node if it hasn't been found before
                     if node not in found_nodes:
-                        self.add_found_attribute(node, current_path, attribute_name)
+                        self.add_found_attribute(node, current_path, attribute_name, hierarchy_level)
                         found_nodes.add(node)
 
     def get_attribute_name(self, node):
@@ -54,10 +54,11 @@ class NODEHELPER_OT_find_named_attributes(Operator):
             return name_socket.default_value if name_socket else node.name
         return node.name
 
-    def add_found_attribute(self, node, path, attribute_name):
+    def add_found_attribute(self, node, path, attribute_name, hierarchy_level):
         item = bpy.context.scene.found_attributes.add()
         item.node_path = ' > '.join(path)
         item.node_name = f"{node.bl_label}: {attribute_name}"
+        item.hierarchy_level = hierarchy_level
 
 class NODEHELPER_OT_jump_to_node(Operator):
     bl_idname = "nodehelper.jump_to_node"
@@ -76,7 +77,13 @@ class NODEHELPER_OT_jump_to_node(Operator):
         context.space_data.path.start(current_tree)
 
         for i, node_name in enumerate(path):
-            node = current_tree.nodes.get(node_name)
+            # Check if this is a group node
+            if " (Group)" in node_name:
+                group_name = node_name.split(" (Group)")[0]
+                node = next((n for n in current_tree.nodes if n.type == 'GROUP' and n.node_tree and n.node_tree.name == group_name), None)
+            else:
+                node = current_tree.nodes.get(node_name)
+
             if not node:
                 self.report({'ERROR'}, f"Node '{node_name}' not found.")
                 return {'CANCELLED'}
@@ -206,6 +213,19 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="", icon='NODE')
+
+    def filter_items(self, context, data, propname):
+        helpers = bpy.types.UI_UL_list
+        items = getattr(data, propname)
+
+        # Sort items first by hierarchy level, then by node path
+        sorted_items = sorted(enumerate(items), key=lambda x: (x[1].hierarchy_level, x[1].node_path))
+        order = [i[0] for i in sorted_items]
+
+        # No filtering
+        filter_flags = [self.bitflag_filter_item] * len(items)
+
+        return filter_flags, order
 
 def register():
     bpy.utils.register_class(FoundAttribute)
