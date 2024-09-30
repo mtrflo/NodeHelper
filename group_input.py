@@ -142,12 +142,22 @@ class NODEHELPER_PT_group_input(Panel):
 
     def draw(self, context):
         layout = self.layout
-        tree = context.space_data.node_tree
+        space = context.space_data
+
+        # Determine the active tree (main tree or entered group)
+        if space.edit_tree and space.edit_tree != space.node_tree:
+            tree = space.edit_tree
+        else:
+            tree = space.node_tree
 
         # Group Input Operations
         box = layout.box()
         box.label(text="Group Input Operations")
-        box.operator("nodehelper.hide_unused_sockets", text="Hide Unused Sockets")
+        
+        # Make the "Hide Unused Sockets" button 1.5 times bigger
+        row = box.row()
+        row.scale_y = 1.5
+        row.operator("nodehelper.hide_unused_sockets", text="Hide Unused Sockets")
 
         # Input Navigator
         box = layout.box()

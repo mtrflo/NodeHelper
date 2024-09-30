@@ -18,12 +18,11 @@ class NODEHELPER_OT_copy_selected_group_inputs(Operator):
     bl_label = "Copy Selected Inputs"
 
     def execute(self, context):
-        node = context.active_node
-        if node.type != 'GROUP_INPUT':
-            self.report({'ERROR'}, "Active node is not a Group Input node")
+        node_tree = context.space_data.edit_tree
+        if not node_tree or node_tree.type != 'GEOMETRY':
+            self.report({'ERROR'}, "No active Geometry Node group")
             return {'CANCELLED'}
         
-        node_tree = node.id_data
         node_tree.update_tag()
         context.view_layer.update()
         
@@ -66,17 +65,16 @@ class NODEHELPER_OT_copy_selected_group_inputs(Operator):
         self.report({'INFO'}, f"Copied {copied_count} selected inputs")
         return {'FINISHED'}
 
+
 class NODEHELPER_OT_paste_group_inputs(Operator):
     bl_idname = "nodehelper.paste_group_inputs"
     bl_label = "Paste Inputs"
 
     def execute(self, context):
-        node = context.active_node
-        if node.type != 'GROUP_INPUT':
-            self.report({'ERROR'}, "Active node is not a Group Input node")
+        node_tree = context.space_data.edit_tree
+        if not node_tree or node_tree.type != 'GEOMETRY':
+            self.report({'ERROR'}, "No active Geometry Node group")
             return {'CANCELLED'}
-        
-        node_tree = node.id_data
         
         # Ensure the node group is editable
         if node_tree.library or node_tree.override_library:
@@ -142,10 +140,6 @@ class NODEHELPER_OT_paste_group_inputs(Operator):
                     else:
                         self.report({'WARNING'}, "Unable to set is_tool: node_tree has no 'is_tool' attribute")
 
-                # After setting properties, update the node tree
-                node_tree.update_tag()
-                bpy.context.view_layer.update()
-
             except Exception as e:
                 self.report({'ERROR'}, f"Failed to process socket {input_data.name}: {str(e)}")
 
@@ -154,7 +148,6 @@ class NODEHELPER_OT_paste_group_inputs(Operator):
         
         self.report({'INFO'}, f"Updated {updated_count} existing inputs and created {created_count} new inputs")
         return {'FINISHED'}
-
 
 
 
