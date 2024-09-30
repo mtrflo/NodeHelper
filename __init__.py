@@ -12,15 +12,13 @@ bl_info = {
 
 import bpy
 from . import attribute
-from . import input_navigator
-from . import groupIO
+from . import copy_groupInputs
 from . import group_input
 
 modules = [
     attribute,
-    input_navigator,
     group_input,
-    groupIO
+    copy_groupInputs
 ]
 
 def register():
