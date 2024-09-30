@@ -159,7 +159,7 @@ def draw_group_io(self, context):
     if node_tree and node_tree.type == 'GEOMETRY':
         print(f"Node tree found: {node_tree.name}, type: {node_tree.type}")
         box = layout.box()
-        box.label(text="Group IO")
+        box.label(text="Copy & Paste")  # Changed from "Group IO" to "Copy&Paste"
         for socket in node_tree.interface.items_tree:
             if socket.item_type == 'SOCKET':
                 print(f"Adding checkbox for socket: {socket.name}")
