@@ -21,10 +21,8 @@ class NODEHELPER_OT_find_named_attributes(Operator):
         
         context.scene.found_attributes.clear()
         
-        # Use a set to keep track of unique nodes
         found_nodes = set()
 
-        # Search in all geometry node groups
         for node_group in bpy.data.node_groups:
             if node_group.type == 'GEOMETRY':
                 self.search_node_tree(node_group, search_name, [], found_nodes)
@@ -54,7 +52,7 @@ class NODEHELPER_OT_find_named_attributes(Operator):
             name_socket = next((input for input in node.inputs if input.name == 'Name'), None)
             return name_socket.default_value if name_socket else node.name
         elif node.bl_idname == 'GeometryNodeRemoveNamedAttribute':
-            return node.inputs[1].default_value  # The second input is typically the "Name" input
+            return node.inputs[1].default_value
         return node.name
 
     def add_found_attribute(self, node, path, attribute_name, hierarchy_level):
@@ -62,7 +60,6 @@ class NODEHELPER_OT_find_named_attributes(Operator):
         item.node_path = ' > '.join(path)
         item.node_name = f"{node.bl_label}: {attribute_name}"
         item.hierarchy_level = hierarchy_level
-
 
 class NODEHELPER_OT_jump_to_node(Operator):
     bl_idname = "nodehelper.jump_to_node"
@@ -81,7 +78,6 @@ class NODEHELPER_OT_jump_to_node(Operator):
         context.space_data.path.start(current_tree)
 
         for i, node_name in enumerate(path):
-            # Check if this is a group node
             if " (Group)" in node_name:
                 group_name = node_name.split(" (Group)")[0]
                 node = next((n for n in current_tree.nodes if n.type == 'GROUP' and n.node_tree and n.node_tree.name == group_name), None)
@@ -160,6 +156,7 @@ class NODEHELPER_OT_rename_attribute(Operator):
 
     def rename_attribute_node(self, node, old_name, new_name):
         renamed = 0
+        
         attribute_nodes = {
             'GeometryNodeStoreNamedAttribute': 'Name',
             'GeometryNodeInputNamedAttribute': 'Name',
@@ -172,12 +169,11 @@ class NODEHELPER_OT_rename_attribute(Operator):
         if node.bl_idname in attribute_nodes:
             name_input = node.inputs.get(attribute_nodes[node.bl_idname])
             
-            if name_input and name_input.default_value == old_name:
-                name_input.default_value = new_name
-                renamed = 1
+            if name_input:
+                if name_input.default_value == old_name:
+                    name_input.default_value = new_name
+                    renamed = 1
         return renamed
-
-
 
 class NODEHELPER_PT_attribute_panel(Panel):
     bl_label = "Attribute"
@@ -194,20 +190,17 @@ class NODEHELPER_PT_attribute_panel(Panel):
         layout = self.layout
         scene = context.scene
 
-        # Rename Attribute section
         box = layout.box()
         box.label(text="Rename")
         box.prop(scene, "old_attribute_name", text="Old Name")
         box.prop(scene, "new_attribute_name", text="New Name")
         box.operator("nodehelper.rename_attribute", text="Rename")
 
-        # Find Attribute Nodes section
         box = layout.box()
         box.label(text="Find")
         box.prop(scene, "attribute_search_name", text="Search")
         box.operator("nodehelper.find_named_attributes", text="Find Attributes")
 
-        # Found Attributes list
         box = layout.box()
         row = box.row()
         row.prop(scene, "show_attribute_list", icon="TRIA_DOWN" if scene.show_attribute_list else "TRIA_RIGHT", icon_only=True, emboss=False)
@@ -223,7 +216,6 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
             
-            # Create a button for each item
             op = row.operator("nodehelper.jump_to_node", text=item.node_path, emboss=True)
             op.index = data.found_attributes.values().index(item)
             
@@ -239,11 +231,9 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
             components = path.split(' > ')
             return tuple((comp, 'zzzz' if '(Group)' in comp else comp) for comp in components)
 
-        # Sort items by parsed node path
         sorted_items = sorted(enumerate(items), key=lambda x: parse_path(x[1].node_path))
         order = [i[0] for i in sorted_items]
 
-        # No filtering
         filter_flags = [self.bitflag_filter_item] * len(items)
 
         return filter_flags, order
