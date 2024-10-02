@@ -126,7 +126,17 @@ class NODEHELPER_OT_rename_attribute(Operator):
             self.report({'ERROR'}, "Both old and new names must be provided.")
             return {'CANCELLED'}
 
-        renamed_count = self.rename_attributes(old_name, new_name)
+        obj = context.active_object
+        if not obj or not obj.modifiers:
+            self.report({'ERROR'}, "No active object or no modifiers found.")
+            return {'CANCELLED'}
+
+        active_modifier = obj.modifiers.active
+        if not active_modifier or active_modifier.type != 'NODES':
+            self.report({'ERROR'}, "No active Geometry Nodes modifier found.")
+            return {'CANCELLED'}
+
+        renamed_count = self.rename_attributes(active_modifier.node_group, old_name, new_name)
 
         self.report({'INFO'}, f"Renamed {renamed_count} attribute(s) from '{old_name}' to '{new_name}'.")
         
@@ -136,15 +146,14 @@ class NODEHELPER_OT_rename_attribute(Operator):
         
         return {'FINISHED'}
 
-    def rename_attributes(self, old_name, new_name):
+    def rename_attributes(self, node_group, old_name, new_name):
         renamed_count = 0
-        for ng in bpy.data.node_groups:
-            if ng.type == 'GEOMETRY':
-                for node in ng.nodes:
-                    if node.type == 'GROUP':
-                        renamed_count += self.rename_attributes_in_group(node.node_tree, old_name, new_name)
-                    else:
-                        renamed_count += self.rename_attribute_node(node, old_name, new_name)
+        if node_group and node_group.type == 'GEOMETRY':
+            for node in node_group.nodes:
+                if node.type == 'GROUP':
+                    renamed_count += self.rename_attributes(node.node_tree, old_name, new_name)
+                else:
+                    renamed_count += self.rename_attribute_node(node, old_name, new_name)
         return renamed_count
 
     def rename_attributes_in_group(self, node_tree, old_name, new_name):
@@ -218,7 +227,10 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
             
-            op = row.operator("nodehelper.jump_to_node", text=item.node_path, emboss=True)
+            # Clean up the node path by removing " (Group)"
+            clean_path = ' > '.join([part.split(' (Group)')[0] for part in item.node_path.split(' > ')])
+            
+            op = row.operator("nodehelper.jump_to_node", text=clean_path, emboss=True)
             op.index = data.found_attributes.values().index(item)
             
         elif self.layout_type in {'GRID'}:
@@ -231,7 +243,7 @@ class NODEHELPER_UL_AttributeList(bpy.types.UIList):
 
         def parse_path(path):
             components = path.split(' > ')
-            return tuple((comp, 'zzzz' if '(Group)' in comp else comp) for comp in components)
+            return tuple((comp.split(' (Group)')[0], 'zzzz' if '(Group)' in comp else comp) for comp in components)
 
         sorted_items = sorted(enumerate(items), key=lambda x: parse_path(x[1].node_path))
         order = [i[0] for i in sorted_items]

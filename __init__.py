@@ -11,9 +11,7 @@ bl_info = {
 }
 
 import bpy
-from . import attribute
-from . import copy_groupInputs
-from . import group_input
+from . import attribute,group_input,copy_groupInputs
 
 modules = [
     attribute,
