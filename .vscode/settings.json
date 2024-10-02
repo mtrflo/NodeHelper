@@ -1,3 +1,4 @@
 {
-  "blender.addon.reloadOnSave": true
+  "blender.addon.reloadOnSave": true,
+  "blender.executables": []
 }

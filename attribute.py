@@ -17,15 +17,17 @@ class NODEHELPER_OT_find_named_attributes(Operator):
             self.report({'ERROR'}, "This operator must be used in the Node Editor.")
             return {'CANCELLED'}
 
+        if not context.space_data.edit_tree or context.space_data.edit_tree.type != 'GEOMETRY':
+            self.report({'ERROR'}, "No Geometry Node tree is currently being edited.")
+            return {'CANCELLED'}
+
         search_name = context.scene.attribute_search_name.lower()
         
         context.scene.found_attributes.clear()
         
         found_nodes = set()
 
-        for node_group in bpy.data.node_groups:
-            if node_group.type == 'GEOMETRY':
-                self.search_node_tree(node_group, search_name, [], found_nodes)
+        self.search_node_tree(context.space_data.edit_tree, search_name, [], found_nodes)
 
         self.report({'INFO'}, f"Found {len(context.scene.found_attributes)} unique attribute node(s).")
         return {'FINISHED'}
