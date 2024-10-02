@@ -11,7 +11,7 @@ This version of the addon includes.
 
 
 
-![image](https://github.com/user-attachments/assets/5858c0ce-9f82-4fb1-85c1-f27b506bd770) ![image](https://github.com/user-attachments/assets/c952f26f-86b7-4a2d-81a9-681cd6aae230)
+<h3>![image](https://github.com/user-attachments/assets/5858c0ce-9f82-4fb1-85c1-f27b506bd770) ![image](https://github.com/user-attachments/assets/c952f26f-86b7-4a2d-81a9-681cd6aae230)</h3>
 
 <h2>How to install</h2>
 Download the latest file from here : https://github.com/mtrflo/NodeHelper/releases
