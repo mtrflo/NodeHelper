@@ -1,16 +1,14 @@
 This addon complements the tools for working with GeometryNodes.
 
 This version of the addon includes.
-1. General
-    1) Hide all group input nodes unused sockets.
-2. NamedAttribute
+1. NamedAttribute
     1) Find and show by name
     2) Rename
-3. GroupInput
+2. GroupInput
     1) Find all group input node used sockets and show.
     2) Copy input sockets and paste to another
+    3) Hide all group input nodes unused sockets.
 
 
 
-![Nodehelper1](https://github.com/user-attachments/assets/9ee18478-ca78-4498-9445-5cbb80e7e187)  ![image](https://github.com/user-attachments/assets/e0e1b002-1382-4965-b4f7-fb509d9e56d3)
-
+![image](https://github.com/user-attachments/assets/5858c0ce-9f82-4fb1-85c1-f27b506bd770) ![image](https://github.com/user-attachments/assets/c952f26f-86b7-4a2d-81a9-681cd6aae230)
