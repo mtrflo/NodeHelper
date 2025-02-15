@@ -12,6 +12,7 @@ bl_info = {
 
 import bpy
 from . import attribute,group_input,copy_groupInputs
+from . import frame
 
 modules = [
     attribute,
@@ -22,10 +23,12 @@ modules = [
 def register():
     for module in modules:
         module.register()
+    frame.register()
 
 def unregister():
     for module in reversed(modules):
         module.unregister()
+    frame.unregister()
 
 if __name__ == "__main__":
     register()
