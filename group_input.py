@@ -9,8 +9,12 @@ class NODEHELPER_OT_hide_unused_sockets(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if context.space_data.node_tree:
-            for node in context.space_data.node_tree.nodes:
+        space = context.space_data
+        # Get the active tree (either edit_tree when inside a group or node_tree for root)
+        active_tree = space.edit_tree or space.node_tree
+        
+        if active_tree:
+            for node in active_tree.nodes:
                 if node.type == 'GROUP_INPUT':
                     for output in node.outputs:
                         if not output.links:
