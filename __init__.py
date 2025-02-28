@@ -12,16 +12,19 @@ import bpy
 from . import group_input
 from . import frame
 from . import attribute
+from . import node_utils
 
 def register():
     group_input.register()
     frame.register()
     attribute.register()
+    node_utils.register()
 
 def unregister():
     attribute.unregister()
     frame.unregister()
     group_input.unregister()
+    node_utils.unregister()
 
 if __name__ == "__main__":
     register()
